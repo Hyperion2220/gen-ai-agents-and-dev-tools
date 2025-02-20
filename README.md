@@ -5,6 +5,7 @@ Welcome to the How to Docs Repository! This is the central hub where you can fin
 ## Table of Contents
 
 - [Run OpenWeb UI & Ollama Locally with Ubuntu](open-webui-ollama.md)
+- [Run OpenWeb UI & Ollama Locally with Docker Desktop](open-webui-ollama-docker.md)
 
 ## License
 
