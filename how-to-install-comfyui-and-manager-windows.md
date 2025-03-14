@@ -1,6 +1,3 @@
-Here's a README.md file based on the provided content, formatted in Markdown with clear instructions and sections:
-
-```markdown
 # ComfyUI and Manager Installation Guide for Windows 11 using Conda and PowerShell 7.5
 
 This guide provides step-by-step instructions to install ComfyUI and ComfyUI-Manager on Windows 11 using Conda via PowerShell 7.5. The setup includes creating a Conda environment, installing dependencies, and configuring PyTorch with support for NVIDIA's Blackwell 50xx series GPUs.
