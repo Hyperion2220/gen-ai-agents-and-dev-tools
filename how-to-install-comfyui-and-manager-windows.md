@@ -69,6 +69,9 @@ git clone https://github.com/ltdrdata/ComfyUI-Manager comfyui-manager
   ```
 - The ComfyUI-Manager will be available within the ComfyUI interface once launched.
 
+## Shortcut Files
+- Use Anaconda PowerShell ComfyUI and ComfyUI files to create easy shortcuts
+
 ## Troubleshooting
 - Ensure your Conda environment is activated before running commands (`conda activate comfyui_env`).
 - If you encounter GPU-related issues, verify your CUDA version matches the PyTorch nightly build installed.
