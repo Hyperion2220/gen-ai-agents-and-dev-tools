@@ -8,6 +8,8 @@ Welcome to the How to Docs Repository! This is the central hub where you can fin
 - [Run OpenWeb UI & Ollama Locally with Docker Desktop](open-webui-ollama-docker.md)
 - [Run Fooocus Locally with Docker Desktop](Fooocus.md)
 - [How to Effectively use LLMs for Coding](how-to-effectively-use-llms-for-coding.md)
+- [How to Install ComfyUI & Manager on Windows 11](how-to-install-comfyui-and-manager-windows.md)
+
   
 ## License
 
