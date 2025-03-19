@@ -52,7 +52,7 @@ The goal is to output prompts, but context, etc is important as well.
 Create a `todo.md` that I can use as a checklist. Be thorough.
 ```
 - Use Web Shark to scrape and gather all the required code and API documentation found in the spec.md file for the LLM to referenece (prevents online misinformation and code hallucination).
-- Use Repomix to consolodate code examples, scraped API documentation, the spec.md and todo.md.  This creates a single .xml file that's ideal for the LLM to use as context.
+- Use Repomix website or Docker to consolodate code examples, scraped API documentation, the spec.md and todo.md.  This creates a single .xml file that's ideal for the LLM to use as context.
 - Add a repomix.config.json file to the crawled output directory.  This provides instruction to Repomix on how to handle the files.
 ```bash
 docker run -v "C:\Users\Dallas\developer\myProjects\webShark\crawler_output:/app" -it --rm ghcr.io/yamadashy/repomix
