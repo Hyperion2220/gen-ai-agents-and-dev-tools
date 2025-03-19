@@ -15,8 +15,8 @@ Windows Deployments:
 - [How to Install ComfyUI & Manager on Windows 11](how-to-install-comfyui-and-manager-windows.md)
 
 Gen AI Agents & Dev Tools:
-- [How to Effectively use LLMs for Coding](how-to-effectively-use-llms-for-coding.md)
 - [Web Shark - Crawl and extract websites and API documentation for LLM context](https://github.com/Hyperion2220/webShark/blob/main/README.md)
+- [Repomix - Pack your codebase into AI-friendly formats](https://repomix.com)
 
 Gen AI Agent Workflow:
 Idea Honing
@@ -65,6 +65,10 @@ Execution
 - Feed the Agent/Architect one prompt at a time from the prompt_plan.md (what happens if you just give it the whole file??).
 - Test every change.  If it fails, ensure it has the repomix-output.xml in context and reference the specific API or code example as needed.
 - Rinse and repeat
+
+
+
+
 
 
 ## License
