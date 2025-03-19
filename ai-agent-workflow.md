@@ -12,9 +12,8 @@ Please start by asking a specific question about the project idea, and ensure th
 After each response, feel free to ask for clarification or additional details as needed. Let's work iteratively to refine the specification until it is ready for implementation.
 ```
 
-At the end of the idea honing process, ask the LLM to output to a spec.md file.  This should contain a list of all high level dependencies such as Astral UV, Pydantic, LangGraph, Bedrock Converse API, etc.
-
 ## Compilation of Findings
+At the end of the idea honing process, ask the LLM to output to a `spec.md` file. This should contain a list of all high level dependancies such as Astral UV, Pydantic, LangGraph, Bedrock Converse API, etc.
 
 ```
 Now that we've wrapped up the brainstorming process, can you compile our findings into a comprehensive, developer-ready specification? 
@@ -26,6 +25,7 @@ Please include the following sections in markdown format:
 - **Error Handling Strategies**: Specify how errors will be managed and reported.
 - **Testing Plan**: Provide a detailed testing strategy, including unit tests, integration tests, and any tools to be used.
 ```
+
 ## Planning
 Use a local (free) reasoning LLM model to create a step-by-step blueprint in LLM prompt format. Output to a `prompt_plan.md` file.
 
@@ -42,6 +42,7 @@ Make sure and separate each prompt section. Use markdown. Each prompt should be 
 The goal is to output prompts, but context, etc is important as well.
 ```
 
+## To Do
 Use a local (free) reasoning LLM model to create a todo.md. The execution LLM can check off the todo.md while processing. This is good for keeping state across sessions.
 
 ```
@@ -57,7 +58,7 @@ Create a `todo.md` that I can use as a checklist. Be thorough.
 docker run -v "C:\Users\Dallas\developer\myProjects\webShark\crawler_output:/app" -it --rm ghcr.io/yamadashy/repomix
 ```
 
-- This process will output a `repomix-output.xml` with all of the project data in a single file for the LLM to consume.   
+This process will output a `repomix-output.xml` with all of the project data in a single file for the LLM to consume.   
 
 ## Execution
 - Use a heavy-hitting thinking LLM model such as Sonnet 3.7 or 3.7 MAX with Cursor or Aider.
