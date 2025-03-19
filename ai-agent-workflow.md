@@ -1,19 +1,22 @@
 # AI Agent Workflow
 
 ## Idea Honing
-- Use a local (free) LLM model to iterate on an idea and output a developer-ready specification in `spec.md` file.
+Use a local (free) LLM model to iterate on an idea and output a developer-ready specification in `spec.md` file.
 
----
-
+```
 Let's collaboratively develop a detailed specification for my project. I will provide answers to your questions one at a time, and I encourage you to ask follow-up questions that build on my previous responses. 
 
 The goal is to create a comprehensive document that I can hand off to a developer, covering all relevant requirements, architecture choices, data handling details, error handling strategies, and a testing plan.
 
-Please start by asking a specific question about the project idea, and ensure that each question encourages me to provide detailed information. After each response, feel free to ask for clarification or additional details as needed. Let's work iteratively to refine the specification until it is ready for implementation.
+Please start by asking a specific question about the project idea, and ensure that each question encourages me to provide detailed information.
+After each response, feel free to ask for clarification or additional details as needed. Let's work iteratively to refine the specification until it is ready for implementation.
+```
 
-- At the end of the idea honing process, ask the LLM to output to a spec.md file.  This should contain a list of all high level dependencies such as Astral UV, Pydantic, LangGraph, Bedrock Converse API, etc.
+At the end of the idea honing process, ask the LLM to output to a spec.md file.  This should contain a list of all high level dependencies such as Astral UV, Pydantic, LangGraph, Bedrock Converse API, etc.
 
 ## Compilation of Findings
+
+```
 Now that we've wrapped up the brainstorming process, can you compile our findings into a comprehensive, developer-ready specification? 
 
 Please include the following sections in markdown format:
@@ -22,11 +25,9 @@ Please include the following sections in markdown format:
 - **Data Handling Details**: Outline how data will be managed, including storage and retrieval methods.
 - **Error Handling Strategies**: Specify how errors will be managed and reported.
 - **Testing Plan**: Provide a detailed testing strategy, including unit tests, integration tests, and any tools to be used.
-
----
-
+```
 ## Planning
-- Use a local (free) reasoning LLM model to create a step-by-step blueprint in LLM prompt format. Output to a `prompt_plan.md` file.
+Use a local (free) reasoning LLM model to create a step-by-step blueprint in LLM prompt format. Output to a `prompt_plan.md` file.
 
 ```
 Draft a detailed, step-by-step blueprint for building this project. Then, once you have a solid plan, break it down into small, iterative chunks that build on each other.
@@ -40,7 +41,9 @@ There should be no hanging or orphaned code that isn't integrated into a previou
 Make sure and separate each prompt section. Use markdown. Each prompt should be tagged as text using code tags.
 The goal is to output prompts, but context, etc is important as well.
 ```
-- Use a local (free) reasoning LLM model to create a todo.md. The execution LLM can check off the todo.md while processing. This is good for keeping state across sessions.
+
+Use a local (free) reasoning LLM model to create a todo.md. The execution LLM can check off the todo.md while processing. This is good for keeping state across sessions.
+
 ```
 Create a `todo.md` that I can use as a checklist. Be thorough.
 ```
