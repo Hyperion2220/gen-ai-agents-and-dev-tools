@@ -1,6 +1,6 @@
-# How To Docs
+# Gen AI Agent Dev Tools and Helper Docs
 
-Welcome to the How to Docs Repository! This is the central hub where you can find all the information about our project, including documentation, setup instructions, and more.
+The purpose of this repo is to collect tools and helper docs I've created.  The goal is to save time by documenting proven and useful patterns.  Additionally I want to have a collection of dev tools to effectively create gen ai agents with ease. 
 
 ## Table of Contents
 
