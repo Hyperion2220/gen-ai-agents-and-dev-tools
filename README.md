@@ -4,12 +4,19 @@ The purpose of this repo is to collect tools and helper docs I've created.  The 
 
 ## Table of Contents
 
-- [Run OpenWeb UI & Ollama Locally with Ubuntu](open-webui-ollama.md)
+Docker Deployments:
 - [Run OpenWeb UI & Ollama Locally with Docker Desktop](open-webui-ollama-docker.md)
 - [Run Fooocus Locally with Docker Desktop](Fooocus.md)
-- [How to Effectively use LLMs for Coding](how-to-effectively-use-llms-for-coding.md)
+
+Ubuntu Deployments:
+- [Run OpenWeb UI & Ollama Locally with Ubuntu](open-webui-ollama.md)
+
+Windows Deployments:  
 - [How to Install ComfyUI & Manager on Windows 11](how-to-install-comfyui-and-manager-windows.md)
 
+Gen AI Agents & Dev Tools:
+- [How to Effectively use LLMs for Coding](how-to-effectively-use-llms-for-coding.md)
+- [Web Shark - Crawl and extract websites and API documentation for LLM context](Hyperion2220/webShark/blob/main/README.md)
   
 ## License
 
