@@ -16,7 +16,7 @@ Windows Deployments:
 
 Gen AI Agents & Dev Tools:
 - [How to Effectively use LLMs for Coding](how-to-effectively-use-llms-for-coding.md)
-- [Web Shark - Crawl and extract websites and API documentation for LLM context](Hyperion2220/webShark/README.md)
+- [Web Shark - Crawl and extract websites and API documentation for LLM context](https://github.com/Hyperion2220/webShark/blob/main/README.md)
   
 ## License
 
