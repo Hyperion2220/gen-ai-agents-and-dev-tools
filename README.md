@@ -16,10 +16,9 @@ Windows Deployments:
 
 AI Agent Code Generation Workflow & Dev Tools:
 - [LLM Code Gen Workflow](ai-agent-workflow.md)
-- [Web Shark - Crawl and extract websites and API documentation for LLM context](https://github.com/Hyperion2220/webShark/blob/main/README.md)
-- [Repomix - Pack your codebase into AI-friendly formats](https://repomix.com)
+  
+- Tools:
+  - [Web Shark - Crawl and extract websites and API documentation for LLM context](https://github.com/Hyperion2220/webShark/blob/main/README.md)
+  - [Repomix - Pack your codebase into AI-friendly formats](https://repomix.com)
 
 
-## License
-
-This project is open source and available under the [License](license.md). Feel free to use it in your projects, but please adhere to its terms.
