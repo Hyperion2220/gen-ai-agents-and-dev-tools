@@ -20,5 +20,7 @@ AI Agent Code Generation Workflow & Dev Tools:
 - Tools:
   - [Web Shark - Crawl and extract websites and API documentation for LLM context](https://github.com/Hyperion2220/webShark/blob/main/README.md)
   - [Repomix - Pack your codebase into AI-friendly formats](https://repomix.com)
+  - [Aider - Use Local or API Based LLMs to Code](https://github.com/Hyperion2220/Aider/blob/main/readme.md)
+
 
 
