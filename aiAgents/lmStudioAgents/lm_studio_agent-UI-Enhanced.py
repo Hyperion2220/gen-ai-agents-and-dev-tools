@@ -40,6 +40,9 @@ from rich.live import Live
 # Initialize console for rich output
 console = Console()
 
+# Initialize conversation history
+conversation_history = []
+
 # LM Studio configuration
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 
@@ -98,17 +101,40 @@ def create_lm_agent() -> Agent:
 
 async def run_lm_agent(prompt: str, agent: Agent, model_name: str) -> AsyncGenerator[str, None]:
     """Streams an LM response for the given prompt using the provided agent."""
-    stream = await openai_client.chat.completions.create(
-        model=model_name,  # Use the provided model name instead of agent.model
-        messages=[
-            {"role": "system", "content": agent.instructions},
-            {"role": "user", "content": prompt}
-        ],
-        stream=True
-    )
-    async for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            yield chunk.choices[0].delta.content
+    global conversation_history
+    
+    # Add the user's message to the conversation history
+    conversation_history.append({"role": "user", "content": prompt})
+    
+    # Check if conversation history is getting too long
+    if len(conversation_history) > 20:  # Arbitrary limit, adjust as needed
+        # Keep the most recent conversations
+        conversation_history = conversation_history[-20:]
+        console.print(f"[{WARNING_STYLE}]Conversation history trimmed to prevent token limit issues.[/{WARNING_STYLE}]")
+    
+    # Create messages array with system instructions and full conversation history
+    messages = [{"role": "system", "content": agent.instructions}]
+    messages.extend(conversation_history)
+    
+    try:
+        stream = await openai_client.chat.completions.create(
+            model=model_name,  # Use the provided model name instead of agent.model
+            messages=messages,
+            stream=True
+        )
+        
+        assistant_response = ""
+        async for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                content = chunk.choices[0].delta.content
+                assistant_response += content
+                yield content
+        
+        # After streaming is complete, add the assistant's response to the conversation history
+        conversation_history.append({"role": "assistant", "content": assistant_response})
+    except Exception as e:
+        console.print(f"[{ERROR_STYLE}]Error in API call: {str(e)}[/{ERROR_STYLE}]")
+        yield f"Error: {str(e)}"
 
 async def generate_response(prompt: str, agent: Agent, model_name: str):
     """Generates a full response while showing the thinking indicator."""
@@ -120,47 +146,43 @@ async def generate_response(prompt: str, agent: Agent, model_name: str):
     
     # Use Rich's Live display to show continuously updating content
     with Live("", refresh_per_second=16) as live:
-        while not full_response.endswith("\n\n") and len(full_response) < 2:
-            # Update elapsed time
-            elapsed_seconds = int(time.time() - start_time)
-            
-            # Simple spinner animation using characters
-            spinner_chars = "|/-\\"
-            spinner = spinner_chars[elapsed_seconds % len(spinner_chars)]
-            
-            # Update the display with styled spinner and thinking phrase
-            styled_text = Text()
-            styled_text.append(spinner, style=SPINNER_STYLE)
-            styled_text.append(" ")
-            styled_text.append(thinking_phrase, style=THINKING_STYLE)
-            styled_text.append(f" ({elapsed_seconds}s)")
-            live.update(styled_text)
-            
-            # Add a small delay for the animation
-            await asyncio.sleep(0.05)
-            
-            # Try to collect response chunks
-            try:
-                async for chunk in run_lm_agent(prompt, agent, model_name):
-                    full_response += chunk
-                    # Continue updating the spinner and elapsed time
-                    elapsed_seconds = int(time.time() - start_time)
-                    spinner = spinner_chars[elapsed_seconds % len(spinner_chars)]
-                    styled_text = Text()
-                    styled_text.append(spinner, style=SPINNER_STYLE)
-                    styled_text.append(" ")
-                    styled_text.append(thinking_phrase, style=THINKING_STYLE)
-                    styled_text.append(f" ({elapsed_seconds}s)")
-                    live.update(styled_text)
-            except Exception:
-                # If there's an error collecting chunks, we'll continue showing the animation
-                # until we get a meaningful response
-                pass
+        # Update elapsed time
+        elapsed_seconds = int(time.time() - start_time)
+        
+        # Simple spinner animation using characters
+        spinner_chars = "|/-\\"
+        spinner = spinner_chars[elapsed_seconds % len(spinner_chars)]
+        
+        # Update the display with styled spinner and thinking phrase
+        styled_text = Text()
+        styled_text.append(spinner, style=SPINNER_STYLE)
+        styled_text.append(" ")
+        styled_text.append(thinking_phrase, style=THINKING_STYLE)
+        styled_text.append(f" ({elapsed_seconds}s)")
+        live.update(styled_text)
+        
+        try:
+            async for chunk in run_lm_agent(prompt, agent, model_name):
+                full_response += chunk
+                # Continue updating the spinner and elapsed time
+                elapsed_seconds = int(time.time() - start_time)
+                spinner = spinner_chars[elapsed_seconds % len(spinner_chars)]
+                styled_text = Text()
+                styled_text.append(spinner, style=SPINNER_STYLE)
+                styled_text.append(" ")
+                styled_text.append(thinking_phrase, style=THINKING_STYLE)
+                styled_text.append(f" ({elapsed_seconds}s)")
+                live.update(styled_text)
+        except Exception as e:
+            console.print(f"[{ERROR_STYLE}]Error generating response: {str(e)}[/{ERROR_STYLE}]")
+            return f"Error: {str(e)}"
     
     return full_response
 
 async def main():
     """Runs the interactive LM Studio agent in a streaming conversation loop."""
+    global conversation_history
+    
     try:
         # First check if LM Studio is available and get models
         try:
@@ -205,6 +227,10 @@ async def main():
                 if user_input.lower() in ["exit", "quit"]:
                     console.print("\nExiting...")
                     break
+                elif user_input.lower() in ["clear", "reset"]:
+                    conversation_history.clear()  # Use clear() instead of reassigning
+                    console.print("[bold cyan]Conversation history cleared.[/bold cyan]")
+                    continue
                 
                 # Generate the full response first while showing thinking indicator
                 full_response = await generate_response(user_input, agent, model_name)
