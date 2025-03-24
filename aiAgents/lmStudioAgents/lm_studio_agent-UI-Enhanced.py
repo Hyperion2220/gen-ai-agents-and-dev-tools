@@ -25,13 +25,15 @@ Note: This script requires LM Studio to be running on http://localhost:1234/v1
 
 import os
 import sys
-from typing import Optional, AsyncGenerator
+import json
+import subprocess
+from typing import Optional, AsyncGenerator, Dict, List, Any, Callable
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.style import Style
 import asyncio
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError
 from agents import Agent
 import time
 import random
@@ -64,34 +66,367 @@ INFO_STYLE = "bold white"
 WARNING_STYLE = "yellow"
 SYSTEM_STYLE = "bold cyan"
 THINKING_STYLE = "bold cyan"
-SPINNER_STYLE = "bold cyan"  # New style for the spinner
+SPINNER_STYLE = "bold cyan"
 
 # Define thinking phrases
 THINKING_PHRASES = [
     "Pondering...",
-    "Noodling...", 
+    "Formulating...",
+    "Noodling...",
+    "Plotting...", 
     "Scheming...",
+    "Unraveling...",
+    "Manifesting...",
     "Conjuring....",
+    "Processing...",
     "Executing..."
 ]
+
+# Tool definitions following OpenAI API format
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_file",
+            "description": "Create a new file with the specified content",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file to create"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write to the file"
+                    }
+                },
+                "required": ["file_path", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "replace_text",
+            "description": "Replace text in a file",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file"
+                    },
+                    "search_text": {
+                        "type": "string",
+                        "description": "Text to search for"
+                    },
+                    "replace_text": {
+                        "type": "string",
+                        "description": "Text to replace with"
+                    }
+                },
+                "required": ["file_path", "search_text", "replace_text"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "insert_line",
+            "description": "Insert a line at a specific position in a file",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file"
+                    },
+                    "line_number": {
+                        "type": "integer",
+                        "description": "Line number to insert at (1-based)"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to insert"
+                    }
+                },
+                "required": ["file_path", "line_number", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_command",
+            "description": "Execute a bash command",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "Command to execute"
+                    }
+                },
+                "required": ["command"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "view_file",
+            "description": "View the contents of a file",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file to view"
+                    }
+                },
+                "required": ["file_path"]
+            }
+        }
+    }
+]
+
+def find_file(file_path: str) -> Dict[str, Any]:
+    """Find a file by name, with fuzzy matching if exact match not found."""
+    if os.path.exists(file_path):
+        return {
+            "status": "found",
+            "file_path": file_path,
+            "message": f"File found: {file_path}"
+        }
+    
+    directory = os.path.dirname(file_path) or "."
+    base_name = os.path.basename(file_path)
+    
+    try:
+        files = os.listdir(directory)
+        matches = [f for f in files if f.startswith(base_name)]
+        
+        if not matches:
+            matches = [f for f in files if base_name.lower() in f.lower()]
+        
+        if matches:
+            if len(matches) == 1:
+                matched_path = os.path.join(directory, matches[0])
+                return {
+                    "status": "found",
+                    "file_path": matched_path,
+                    "message": f"Found similar file: {matched_path}"
+                }
+            return {
+                "status": "suggestions",
+                "suggestions": matches,
+                "message": f"Multiple possible matches found: {', '.join(matches)}"
+            }
+        
+        abs_directory = os.path.abspath(directory)
+        return {
+            "status": "not_found",
+            "message": f"No files matching '{base_name}' found in directory: {abs_directory}"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error searching for files: {str(e)}"
+        }
+
+def create_file(file_path: str, content: str) -> Dict[str, Any]:
+    """Create a new file with the specified content."""
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return {
+            "status": "success", 
+            "message": f"File created at {file_path}",
+            "content": content
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def replace_text(file_path: str, search_text: str, replace_text: str) -> Dict[str, Any]:
+    """Replace text in a file."""
+    try:
+        file_result = find_file(file_path)
+        
+        if file_result["status"] == "found":
+            actual_path = file_result["file_path"]
+            with open(actual_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            if search_text not in content:
+                return {"status": "error", "message": f"Text '{search_text}' not found in {actual_path}"}
+
+            new_content = content.replace(search_text, replace_text)
+            with open(actual_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+
+            return {
+                "status": "success", 
+                "message": f"Replaced '{search_text}' with '{replace_text}' in {actual_path}",
+                "updated_content": new_content,
+                "file_path": actual_path
+            }
+        elif file_result["status"] == "suggestions":
+            return {
+                "status": "error",
+                "message": f"File '{file_path}' not found. Did you mean one of these? {', '.join(file_result['suggestions'])}"
+            }
+        return {"status": "error", "message": file_result["message"]}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def insert_line(file_path: str, line_number: int, content: str) -> Dict[str, Any]:
+    """Insert a line at a specific position in a file."""
+    try:
+        file_result = find_file(file_path)
+        
+        if file_result["status"] == "found":
+            actual_path = file_result["file_path"]
+            with open(actual_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            if line_number < 1 or line_number > len(lines) + 1:
+                return {"status": "error", "message": f"Invalid line number: {line_number}. File has {len(lines)} lines."}
+
+            lines.insert(line_number - 1, content if content.endswith('\n') else content + '\n')
+            updated_content = ''.join(lines)
+            
+            with open(actual_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+
+            return {
+                "status": "success", 
+                "message": f"Inserted line at position {line_number} in {actual_path}",
+                "updated_content": updated_content,
+                "file_path": actual_path
+            }
+        elif file_result["status"] == "suggestions":
+            return {
+                "status": "error",
+                "message": f"File '{file_path}' not found. Did you mean one of these? {', '.join(file_result['suggestions'])}"
+            }
+        return {"status": "error", "message": file_result["message"]}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def execute_command(command: str) -> Dict[str, Any]:
+    """Execute a bash command."""
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+
+        message = f"Command executed successfully: '{command}'" if result.returncode == 0 else f"Command failed with return code {result.returncode}: '{command}'"
+
+        return {
+            "status": "success" if result.returncode == 0 else "error",
+            "message": message,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "returncode": result.returncode
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def view_file(file_path: str) -> Dict[str, Any]:
+    """View the contents of a file."""
+    try:
+        file_result = find_file(file_path)
+        
+        if file_result["status"] == "found":
+            actual_path = file_result["file_path"]
+            with open(actual_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return {
+                "status": "success", 
+                "content": content,
+                "file_path": actual_path,
+                "message": f"Viewing file: {actual_path}"
+            }
+        elif file_result["status"] == "suggestions":
+            return {
+                "status": "error",
+                "message": f"File '{file_path}' not found. Did you mean one of these? {', '.join(file_result['suggestions'])}"
+            }
+        return {"status": "error", "message": file_result["message"]}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# Map tool names to their implementations
+TOOL_MAP = {
+    "create_file": create_file,
+    "replace_text": replace_text,
+    "insert_line": insert_line,
+    "execute_command": execute_command,
+    "view_file": view_file
+}
+
+def execute_tool_call(tool_call) -> str:
+    """Execute a tool call and return the result as a string."""
+    try:
+        tool_name = tool_call["function"]["name"]
+        if tool_name not in TOOL_MAP:
+            return json.dumps({"status": "error", "message": f"Unknown tool: {tool_name}"})
+        
+        args = json.loads(tool_call["function"]["arguments"])
+        result = TOOL_MAP[tool_name](**args)
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": f"Error executing tool: {str(e)}"})
 
 def create_lm_agent() -> Agent:
     """Creates an LM Studio agent using the default model from LM Studio."""
     instructions = """
-    You are a helpful, accurate, and concise AI assistant.
-    
-    Respond to queries in a conversational, friendly tone while prioritizing factual information.
-    Provide structured answers when appropriate.
-    
-    When you don't know something or aren't sure:
-    - Clearly state your uncertainty
-    - Avoid making up facts or speculating
-    - Suggest related areas you can help with instead
-    
-    Keep responses focused and relevant to the user's question.
-    When handling coding questions, include practical examples when helpful.
-    
-    For complex topics, break down your explanation into simpler parts.
+    You are a helpful, accurate, and concise AI assistant designed to assist users with file manipulation, command execution, and general queries.
+
+    ### Tool Usage
+    - You have access to tools for file manipulation and command execution.
+    - Available tools include:
+      - `create_file`: Create new files with specified content. Default to the current working directory.   
+      - `replace_text`: Replace text within existing files. 
+      - `insert_line`: Insert a line at a specific position in a file. 
+      - `view_file`: Display the contents of a file. 
+      - `execute_command`: Execute system commands. 
+    - Always use the appropriate tool for the requested task.
+    - Provide clear explanations of what you're doing and why when using tools.
+
+    ### Command Execution
+    - Be cautious with commands that might modify the system.
+    - Adapt command syntax to the user's operating system. Initially, assume Windows unless told otherwise.
+    - For Windows systems, use standard Command Prompt commands:
+      - `del` for deleting files (not `rm` or `Remove-Item`)
+      - `dir` for listing directory contents (not `ls`)
+      - `copy` for copying files (not `cp`)
+      - `move` for moving files (not `mv`)
+      - `mkdir` for creating directories (not `md`)
+      - `rmdir` for removing directories (not `rd`)
+      - `type` for displaying file contents (not `cat`)
+      - `echo` for printing text
+    - These commands work reliably in both Command Prompt and PowerShell environments.
+
+    ### Conversation Style
+    - Respond in a friendly, conversational tone.
+    - Prioritize factual, accurate information in your responses.
+    - Keep answers focused and relevant to the user's question.
+    - Use structured answers (e.g., lists, steps) when appropriate.
+    - For coding questions, include practical examples when helpful.
+    - Break down complex topics into simpler, digestible parts.
+
+    ### Handling Uncertainty
+    - If you don't know something or aren't sure:
+      - Clearly state your uncertainty.
+      - Avoid making up facts or speculating.
+      - Suggest related areas where you can provide assistance instead.
     """
     return Agent(
         name="LocalAssistant",
@@ -103,35 +438,111 @@ async def run_lm_agent(prompt: str, agent: Agent, model_name: str) -> AsyncGener
     """Streams an LM response for the given prompt using the provided agent."""
     global conversation_history
     
-    # Add the user's message to the conversation history
     conversation_history.append({"role": "user", "content": prompt})
     
-    # Check if conversation history is getting too long
-    if len(conversation_history) > 20:  # Arbitrary limit, adjust as needed
-        # Keep the most recent conversations
+    if len(conversation_history) > 20:
         conversation_history = conversation_history[-20:]
         console.print(f"[{WARNING_STYLE}]Conversation history trimmed to prevent token limit issues.[/{WARNING_STYLE}]")
     
-    # Create messages array with system instructions and full conversation history
-    messages = [{"role": "system", "content": agent.instructions}]
-    messages.extend(conversation_history)
+    system_message = {"role": "system", "content": agent.instructions}
+    messages = [system_message] + conversation_history
     
     try:
         stream = await openai_client.chat.completions.create(
-            model=model_name,  # Use the provided model name instead of agent.model
+            model=model_name,
             messages=messages,
-            stream=True
+            stream=True,
+            temperature=0.7,
+            max_tokens=1000,
+            timeout=30,
+            tools=TOOLS,
+            tool_choice="auto"
         )
         
         assistant_response = ""
+        tool_calls = []
+        
         async for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
+            if chunk.choices[0].delta.content:
                 content = chunk.choices[0].delta.content
                 assistant_response += content
                 yield content
+            
+            if chunk.choices[0].delta.tool_calls:
+                for tool_call_delta in chunk.choices[0].delta.tool_calls:
+                    if tool_call_delta.index >= len(tool_calls):
+                        tool_calls.extend([{} for _ in range(tool_call_delta.index - len(tool_calls) + 1)])
+                    
+                    if not tool_calls[tool_call_delta.index]:
+                        tool_calls[tool_call_delta.index] = {
+                            "id": tool_call_delta.id,
+                            "type": "function",
+                            "function": {"name": "", "arguments": ""}
+                        }
+                    
+                    if tool_call_delta.function.name:
+                        tool_calls[tool_call_delta.index]["function"]["name"] = tool_call_delta.function.name
+                    if tool_call_delta.function.arguments:
+                        tool_calls[tool_call_delta.index]["function"]["arguments"] += tool_call_delta.function.arguments
         
-        # After streaming is complete, add the assistant's response to the conversation history
-        conversation_history.append({"role": "assistant", "content": assistant_response})
+        if assistant_response:
+            conversation_history.append({"role": "assistant", "content": assistant_response})
+        
+        if tool_calls:
+            conversation_history.append({
+                "role": "assistant",
+                "content": None,
+                "tool_calls": tool_calls
+            })
+            
+            for tool_call in tool_calls:
+                if tool_call.get("function", {}).get("name"):
+                    yield f"\n\nCalling tool: {tool_call['function']['name']}\n"
+                    try:
+                        args = json.loads(tool_call["function"]["arguments"])
+                        result = TOOL_MAP[tool_call["function"]["name"]](**args)
+                        
+                        tool_response = {
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps(result)
+                        }
+                        conversation_history.append(tool_response)
+                        
+                        yield f"Tool result: {json.dumps(result, indent=2)}\n"
+                    except Exception as e:
+                        error_msg = f"Error executing tool {tool_call['function']['name']}: {str(e)}"
+                        yield f"\n{error_msg}\n"
+                        conversation_history.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps({"status": "error", "message": str(e)})
+                        })
+            
+            follow_up_stream = await openai_client.chat.completions.create(
+                model=model_name,
+                messages=[system_message] + conversation_history,
+                stream=True,
+                temperature=0.7,
+                max_tokens=1000,
+                timeout=30,
+                tools=TOOLS,
+                tool_choice="auto"
+            )
+            
+            follow_up_response = ""
+            async for chunk in follow_up_stream:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    follow_up_response += content
+                    yield content
+            
+            if follow_up_response:
+                conversation_history.append({"role": "assistant", "content": follow_up_response})
+                
+    except RateLimitError as e:
+        console.print(f"[{ERROR_STYLE}]Rate limit exceeded: {str(e)}[/{ERROR_STYLE}]")
+        yield "Rate limit exceeded. Please wait a moment before trying again."
     except Exception as e:
         console.print(f"[{ERROR_STYLE}]Error in API call: {str(e)}[/{ERROR_STYLE}]")
         yield f"Error: {str(e)}"
@@ -141,19 +552,13 @@ async def generate_response(prompt: str, agent: Agent, model_name: str):
     full_response = ""
     start_time = time.time()
     
-    # Select a random thinking phrase
     thinking_phrase = random.choice(THINKING_PHRASES)
     
-    # Use Rich's Live display to show continuously updating content
     with Live("", refresh_per_second=16) as live:
-        # Update elapsed time
         elapsed_seconds = int(time.time() - start_time)
-        
-        # Simple spinner animation using characters
         spinner_chars = "|/-\\"
         spinner = spinner_chars[elapsed_seconds % len(spinner_chars)]
         
-        # Update the display with styled spinner and thinking phrase
         styled_text = Text()
         styled_text.append(spinner, style=SPINNER_STYLE)
         styled_text.append(" ")
@@ -164,7 +569,6 @@ async def generate_response(prompt: str, agent: Agent, model_name: str):
         try:
             async for chunk in run_lm_agent(prompt, agent, model_name):
                 full_response += chunk
-                # Continue updating the spinner and elapsed time
                 elapsed_seconds = int(time.time() - start_time)
                 spinner = spinner_chars[elapsed_seconds % len(spinner_chars)]
                 styled_text = Text()
@@ -183,8 +587,19 @@ async def main():
     """Runs the interactive LM Studio agent in a streaming conversation loop."""
     global conversation_history
     
+    # Define available commands
+    COMMANDS = {
+        "help": "Display this list of available commands",
+        "clear or reset": "Clear the conversation history",
+        "save": "Save the current conversation to conversation_history.json",
+        "load": "Load a previously saved conversation from conversation_history.json",
+        "exit or quit": "Exit the program",
+    }
+    
+    # File path for saving/loading conversation
+    CONVERSATION_FILE = "conversation_history.json"
+    
     try:
-        # First check if LM Studio is available and get models
         try:
             response = await openai_client.models.list()
             if not response.data:
@@ -192,18 +607,20 @@ async def main():
                 console.print(f"[{WARNING_STYLE}]Please ensure you have at least one model loaded in LM Studio[/{WARNING_STYLE}]")
                 sys.exit(1)
                 
-            # Get the first model name
             model_name = response.data[0].id
-            
-            # Create the agent
             agent = create_lm_agent()
             
-            # Display connection status and model name with requested formatting
             console.print(Panel(
                 f"[{SYSTEM_STYLE}]LM Studio:[/{SYSTEM_STYLE}] [{INFO_STYLE}]Connected[/{INFO_STYLE}]\n"
-                f"[{SYSTEM_STYLE}]Model:[/{SYSTEM_STYLE}] [{INFO_STYLE}]{model_name}[/{INFO_STYLE}]", 
+                f"[{SYSTEM_STYLE}]Model:[/{SYSTEM_STYLE}] [{INFO_STYLE}]{model_name}[/{INFO_STYLE}]\n"
+                f"[{SYSTEM_STYLE}]Settings:[/{SYSTEM_STYLE}] [{INFO_STYLE}]Temperature: 0.7, Max Tokens: 1000[/{INFO_STYLE}]", 
                 border_style="green"
             ))
+            
+            console.print("\n[bold]Available tools:[/bold]")
+            for tool in TOOLS:
+                console.print(f"- [cyan]{tool['function']['name']}[/cyan]: {tool['function']['description']}")
+            console.print()
         except Exception as e:
             console.print(Panel(
                 f"[{SYSTEM_STYLE}]LM Studio:[/{SYSTEM_STYLE}] [{ERROR_STYLE}]Disconnected[/{ERROR_STYLE}]\n"
@@ -213,29 +630,54 @@ async def main():
             console.print(f"[{WARNING_STYLE}]Please make sure LM Studio is running with the server enabled on port 1234[/{WARNING_STYLE}]")
             sys.exit(1)
         
-        # Start the interactive conversation loop
         while True:
             try:
-                # Display user input prompt
                 console.print("\n> ", end="", style=USER_STYLE)
-                
-                # Get user input asynchronously
                 user_input = await asyncio.to_thread(input, "")
                 user_input = user_input.strip()
                 
-                # Check for exit commands
+                # Check for help command
+                if user_input.lower().startswith("help"):
+                    console.print("\n[bold cyan]Available Commands:[/bold cyan]")
+                    for cmd, desc in COMMANDS.items():
+                        console.print(f"- [cyan]{cmd}[/cyan]: {desc}")
+                    console.print("\n[bold]Note:[/bold] For tool usage, ask the assistant directly (e.g., 'create a file')")
+                    continue
+                
+                # Check for save command
+                if user_input.lower() == "save":
+                    try:
+                        with open(CONVERSATION_FILE, 'w', encoding='utf-8') as f:
+                            json.dump(conversation_history, f, indent=2)
+                        console.print(f"[bold cyan]Conversation saved to {CONVERSATION_FILE}[/bold cyan]")
+                    except Exception as e:
+                        console.print(f"[{ERROR_STYLE}]Error saving conversation: {str(e)}[/{ERROR_STYLE}]")
+                    continue
+                
+                # Check for load command
+                if user_input.lower() == "load":
+                    try:
+                        if os.path.exists(CONVERSATION_FILE):
+                            with open(CONVERSATION_FILE, 'r', encoding='utf-8') as f:
+                                loaded_history = json.load(f)
+                            conversation_history = loaded_history
+                            console.print(f"[bold cyan]Conversation loaded from {CONVERSATION_FILE}[/bold cyan]")
+                        else:
+                            console.print(f"[{WARNING_STYLE}]No saved conversation found at {CONVERSATION_FILE}[/{WARNING_STYLE}]")
+                    except Exception as e:
+                        console.print(f"[{ERROR_STYLE}]Error loading conversation: {str(e)}[/{ERROR_STYLE}]")
+                    continue
+                
+                # Existing command checks
                 if user_input.lower() in ["exit", "quit"]:
                     console.print("\nExiting...")
                     break
                 elif user_input.lower() in ["clear", "reset"]:
-                    conversation_history.clear()  # Use clear() instead of reassigning
+                    conversation_history.clear()
                     console.print("[bold cyan]Conversation history cleared.[/bold cyan]")
                     continue
                 
-                # Generate the full response first while showing thinking indicator
                 full_response = await generate_response(user_input, agent, model_name)
-                
-                # Once done, display the bullet point and the full response
                 console.print("• ", end="", style=ASSISTANT_STYLE)
                 console.print(full_response, style=ASSISTANT_STYLE)
                 
