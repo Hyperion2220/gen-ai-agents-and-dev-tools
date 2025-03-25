@@ -16,8 +16,14 @@ This repository contains a Python script demonstrating how to create an interact
 - **Customizable Agent Instructions**: The agent's behavior is defined by concise, friendly, and factual instructions, which can be modified as needed.
 - **Model Detection**: Automatically detects and uses the first available model from LM Studio, with feedback on the connection status and model name.
 - **Conversation Commands**: Type `exit` or `quit` to cleanly terminate the conversation loop. Use `clear` or `reset` to start a fresh conversation while keeping the connection active.
-- **Response Control**: Configurable temperature (0.7) and maximum token limit (1000) to control response randomness and length.
-- **Timeout Protection**: Built-in 30-second timeout to prevent hanging on slow responses.
+- **Response Control**: Configurable temperature (0.7) and maximum token limit settings with separate values for initial (4096) and follow-up (1000) responses.
+- **Timeout Protection**: Configurable timeout settings with separate values for initial (30-second) and follow-up responses.
+- **Clean Tool Result Display**: Tools execute with minimal notifications that don't overwhelm the user with raw data, showing only "[Using tool_name...]" indicators when tools are used.
+- **Enhanced Response Format Instructions**: The agent is specifically instructed to use tools internally and provide concise natural language answers rather than writing code that simulates tool functionality.
+- **Customizable Welcome Message**: Displays a configurable welcome message that can be easily modified through constants at the top of the file.
+- **Higher Token Limits**: Increased maximum token limit to 4096 for initial responses, allowing for more complex reasoning and longer conversations.
+- **Token Usage Management**: The "clear" command resets the conversation history, effectively freeing up the token usage back to baseline.
+- **Visual Style Customization**: Colors and styles are defined as constants at the top of the file for easy customization of the interface appearance.
 - **Tool Functionality**: Includes tools for file manipulation and command execution:
   - `create_file`: Create new files with specified content
   - `replace_text`: Replace text in existing files
@@ -108,7 +114,7 @@ The script performs the following:
 ```
 LM Studio: Connected
 Model: my-local-model
-Settings: Temperature: 0.7, Max Tokens: 1000
+Settings: Temperature: 0.7, Max Tokens: 4096/1000
 
 Available tools:
 - create_file: Create a new file with the specified content
@@ -117,15 +123,12 @@ Available tools:
 - execute_command: Execute a bash command
 - view_file: View the contents of a file
 
+Master, would you like to code? You will be pleased.
+
 > Can you create a simple Python hello world script for me?
 • I'll create a simple Python hello world script for you.
 
-Calling tool: create_file
-Tool result: {
-  "status": "success",
-  "message": "File created at hello_world.py",
-  "content": "print(\"Hello, World!\")"
-}
+[Using create_file...]
 
 I've created a file named "hello_world.py" with a simple Hello World program. You can run it using the command "python hello_world.py" to see the output.
 ```
@@ -142,6 +145,9 @@ I've created a file named "hello_world.py" with a simple Hello World program. Yo
 
 - The script assumes LM Studio is configured with its default server settings.
 - The agent uses the first model listed by LM Studio; modify `model_name` in the code if you need a specific model.
+- API parameters like temperature, max tokens, and timeouts can be easily configured by modifying the constants at the top of the file.
+- The welcome message displayed on startup can be customized by changing the `WELCOME_MESSAGE` constant.
+- The visual styles and colors used throughout the interface can be modified by changing the style constants.
 - This is an example implementation—feel free to extend the agent's instructions or functionality for your use case.
 - By default, the agent is configured for Windows command execution; this can be modified in the agent instructions.
 
