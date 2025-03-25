@@ -4,7 +4,35 @@ Below is a README for the provided Python script that outlines its features, fun
 
 # LM Studio Local Agent Example with Streaming and Tools
 
-This repository contains a Python script demonstrating how to create an interactive AI agent using the OpenAI Agents SDK with LM Studio as the local backend. The agent leverages a local large language model (LLM) running in LM Studio, providing streaming responses to user queries in an ongoing, interactive conversation with file manipulation and command execution capabilities.
+## Project Summary
+
+This repository contains a collection of Python scripts that implement AI agents for interfacing with local language models running in LM Studio. The scripts demonstrate different approaches and features for building interactive conversational agents:
+
+1. **Basic Implementation Files:**
+   - `lm_studio_agent_simple_ui.py` - A simple implementation with basic UI formatting
+
+2. **Advanced Implementation Files:**
+   - `lm_studio_agent_enhanced_ui_tool_use.py` - Enhanced UI version with tool use capabilities
+   - `lm_studio_agent_clean_ui_bash_tool_use.py` - Version with bash and tool use support
+   - `lm_studio_agent_clean_ui_bash_tool_use_v2.py` - Latest version with improved bash and tool use support
+
+These agents demonstrate how to leverage local language models through LM Studio as alternatives to cloud-based AI services, providing a way to build interactive AI assistants that run entirely on your local machine.
+
+### Run Commands
+
+To run each version of the agent, use the following commands:
+
+```bash
+# Basic implementations
+uv run lm_studio_agent_simple_ui.py
+
+# Advanced implementations
+uv run lm_studio_agent_enhanced_ui_tool_use.py
+uv run lm_studio_agent_clean_ui_bash_tool_use.py
+uv run lm_studio_agent_clean_ui_bash_tool_use_v2.py
+```
+
+Make sure LM Studio is running with at least one model loaded before executing any of these commands.
 
 ## Features
 
