@@ -26,7 +26,7 @@ import glob
 import asyncio
 
 # Import functions from the main script
-from lm_studio_agent_clean_ui_bash_tool_use_v4 import (
+from lm_studio_agent_clean_ui_bash_tool_use_vision_v4 import (
     create_file,
     replace_text,
     insert_line,

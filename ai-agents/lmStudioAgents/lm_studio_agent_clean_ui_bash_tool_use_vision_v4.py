@@ -17,7 +17,7 @@ with LM Studio as the backend. The agent responds to user queries in an ongoing 
 with streaming output, using a local LLM model.
 
 Run with:
-    uv run lm_studio_agent_clean_ui_bash_tool_use_v4.py
+    uv run lm_studio_agent_clean_ui_bash_tool_use_vision_v4.py
 
 Then, type your messages and press enter. Type 'exit' to quit.
 

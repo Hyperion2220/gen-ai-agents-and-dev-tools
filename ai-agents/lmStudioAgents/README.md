@@ -36,7 +36,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
    uv run lm_studio_agent_clean_ui_bash_tool_use.py # - Version with bash and tool use support
    uv run lm_studio_agent_clean_ui_bash_tool_use_v2.py # - Version with improved bash and tool use support
    uv run lm_studio_agent_clean_ui_bash_tool_use_v3.py # - Version with additional improvements and stability enhancements
-   uv run lm_studio_agent_clean_ui_bash_tool_use_v4.py # - Latest version with image description capabilities
+   uv run lm_studio_agent_clean_ui_bash_tool_use_vision_v4.py # - Latest version with image description capabilities
 ```
 
 **Image Description Utility:**
