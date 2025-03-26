@@ -16,7 +16,7 @@ with LM Studio as the backend. The agent responds to user queries in an ongoing 
 with streaming output, using a local LLM model.
 
 Run with:
-    uv run lm_studio_agent_bash_and_tool_use.py
+    uv run lm_studio_agent_clean_ui_bash_tool_use_v2.py
 
 Then, type your messages and press enter. Type 'exit' to quit.
 
@@ -27,11 +27,10 @@ import os
 import sys
 import json
 import subprocess
-from typing import Optional, AsyncGenerator, Dict, List, Any, Callable
+from typing import AsyncGenerator, Dict, List, Any, Callable
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.style import Style
 import asyncio
 from openai import AsyncOpenAI, RateLimitError
 from agents import Agent
@@ -397,7 +396,8 @@ def execute_tool_call(tool_call) -> str:
 
 def create_lm_agent() -> Agent:
     """Creates an LM Studio agent using the default model from LM Studio."""
-    instructions = """
+    # Define instructions for the AI model
+    system_prompt = """
     You are a helpful, accurate, and concise AI assistant designed to assist users with file manipulation, command execution, and general queries.
 
     ### Tool Usage
@@ -447,9 +447,10 @@ def create_lm_agent() -> Agent:
       4. DO NOT write code snippets that simulate what the tools already do
     - Respond in natural language, not with code blocks, unless specifically asked for code examples.
     """
+    # Create and return an Agent object with the specified parameters
     return Agent(
         name="LocalAssistant",
-        instructions=instructions,
+        instructions=system_prompt,
         model="default",
     )
 

@@ -1,4 +1,4 @@
-# LM Studio Local Agent Example with Streaming and Tools
+# LM Studio Local Agents
 
 ## Project Summary
 
@@ -21,6 +21,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```
 
 3. Ensure LM Studio Server is running with a loaded model.
+
 
 ## Usage
 
@@ -94,11 +95,28 @@ Available tools:
 Master, would you like to code? You will be pleased.
 
 > Can you create a simple Python hello world script for me?
+
 • I'll create a simple Python hello world script for you.
 
 [Using create_file...]
-
 I've created a file named "hello_world.py" with a simple Hello World output. You can run it using the command "python hello_world.py".
+
+## Testing
+
+The project includes a test script to verify the functionality of the LM Studio agent implementation:
+
+```bash
+uv run pytest test_lm_studio_agent.py -v
+```
+
+The test script (`test_lm_studio_agent.py`) includes tests for:
+- File operations (finding, creating, viewing, modifying files)
+- Command execution
+- Agent creation and configuration
+- LM Studio connection (requires LM Studio running)
+- Streaming response functionality (verifies that responses are properly streamed in chunks)
+
+You can skip tests that require LM Studio by setting the environment variable `SKIP_LM_STUDIO_TESTS`.
 
 ## Documentation
 

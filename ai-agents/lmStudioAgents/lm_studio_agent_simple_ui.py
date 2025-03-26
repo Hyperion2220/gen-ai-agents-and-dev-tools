@@ -25,11 +25,10 @@ Note: This script requires LM Studio to be running on http://localhost:1234/v1
 
 import os
 import sys
-from typing import Optional, AsyncGenerator
+from typing import AsyncGenerator
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.style import Style
 import asyncio
 from openai import AsyncOpenAI
 from agents import Agent

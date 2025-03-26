@@ -27,11 +27,10 @@ import os
 import sys
 import json
 import subprocess
-from typing import Optional, AsyncGenerator, Dict, List, Any, Callable
+from typing import AsyncGenerator, Dict, List, Any, Callable
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.style import Style
 import asyncio
 from openai import AsyncOpenAI, RateLimitError
 from agents import Agent
