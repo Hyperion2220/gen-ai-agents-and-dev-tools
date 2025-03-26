@@ -34,7 +34,14 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```bash
    uv run lm_studio_agent_enhanced_ui_tool_use.py # - Enhanced UI version with tool use capabilities
    uv run lm_studio_agent_clean_ui_bash_tool_use.py # - Version with bash and tool use support
-   uv run lm_studio_agent_clean_ui_bash_tool_use_v2.py # - Latest version with improved bash and tool use support
+   uv run lm_studio_agent_clean_ui_bash_tool_use_v2.py # - Version with improved bash and tool use support
+   uv run lm_studio_agent_clean_ui_bash_tool_use_v3.py # - Version with additional improvements and stability enhancements
+   uv run lm_studio_agent_clean_ui_bash_tool_use_v4.py # - Latest version with image description capabilities
+```
+
+**Image Description Utility:**
+```bash
+   uv run image_describe.py # - Standalone utility for testing image description with LM Studio
 ```
 
 ## Features
@@ -72,12 +79,20 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
      - `insert_line`: Insert a line at a specific position in a file
      - `view_file`: Display the contents of a file
      - `execute_command`: Execute system commands
+     - `describe_image`: Analyze and describe the contents of an image file (v4 only)
    - Continues the conversation with follow-up responses after tool execution.
 
 6. **File Operations**:
    - Supports creating, viewing, and modifying files with fuzzy file matching.
    - Handles file path resolution and directory creation.
+   - Automatically checks current working directory when a file isn't found.
    - Provides detailed error messages for file operation failures.
+
+7. **Image Processing** (v4 only):
+   - Analyzes images using the vision capabilities of local LLMs in LM Studio.
+   - Supports various image formats (JPEG, PNG).
+   - Intelligently searches for image files in the current directory if not found at the specified path.
+   - Prompts for the exact path if an image cannot be located.
 
 ## Example Interaction
 
@@ -91,6 +106,7 @@ Available tools:
 - insert_line: Insert a line at a specific position in a file
 - execute_command: Execute a bash command
 - view_file: View the contents of a file
+- describe_image: Analyze and describe the contents of an image file (v4 only)
 
 Master, would you like to code? You will be pleased.
 
@@ -115,12 +131,16 @@ The test script (`test_lm_studio_agent.py`) includes tests for:
 - Agent creation and configuration
 - LM Studio connection (requires LM Studio running)
 - Streaming response functionality (verifies that responses are properly streamed in chunks)
+- Image description capabilities (v4 only, requires a model with vision capabilities)
+
+The tests are designed to be modular:
+- File operation and command execution tests run independently without requiring LM Studio
+- LM Studio-dependent tests use a shared pytest fixture that checks connectivity once
+- Tests automatically skip with informative messages if dependencies are not available
 
 You can skip tests that require LM Studio by setting the environment variable `SKIP_LM_STUDIO_TESTS`.
 
 ## Documentation
-
-For more information on Claude 3.7 Sonnet and extended thinking, check out these resources:
 
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference/introduction)
 - [LM Studio OpenAI Compatibility API](https://lmstudio.ai/docs/app/api/endpoints/openai)

@@ -5,6 +5,7 @@
 #   "openai-agents>=0.0.6",
 #   "rich>=13.9.4",
 #   "openai>=1.68.2",
+#   "python-dotenv>=1.0.0",
 # ]
 # ///
 
@@ -16,7 +17,7 @@ with LM Studio as the backend. The agent responds to user queries in an ongoing 
 with streaming output, using a local LLM model.
 
 Run with:
-    uv run lm_studio_agent_clean_ui_bash_tool_use_v3.py
+    uv run lm_studio_agent_clean_ui_bash_tool_use_v4.py
 
 Then, type your messages and press enter. Type 'exit' to quit.
 
@@ -27,6 +28,7 @@ import os
 import sys
 import json
 import subprocess
+import base64
 from typing import AsyncGenerator, Dict, Any
 from rich.console import Console
 from rich.panel import Panel
@@ -66,7 +68,7 @@ WARNING_STYLE = "yellow"
 SYSTEM_STYLE = "bold cyan"
 THINKING_STYLE = "bold cyan"
 SPINNER_STYLE = "bold cyan"
-WELCOME_STYLE = "magenta"
+WELCOME_STYLE = "bold magenta"
 
 # Define API parameters
 API_TEMPERATURE = 0.1
@@ -203,6 +205,23 @@ TOOLS = [
                     }
                 },
                 "required": ["file_path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "describe_image",
+            "description": "Analyze and describe the contents of an image using the LM Studio vision model",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "image_path": {
+                        "type": "string",
+                        "description": "Path to the image file to analyze"
+                    }
+                },
+                "required": ["image_path"]
             }
         }
     }
@@ -382,26 +401,155 @@ def execute_command(command: str) -> Dict[str, Any]:
 def view_file(file_path: str) -> Dict[str, Any]:
     """View the contents of a file."""
     try:
+        # Use find_file to locate the file
         file_result = find_file(file_path)
         
-        if file_result["status"] == "found":
-            actual_path = file_result["file_path"]
-            with open(actual_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            return {
-                "status": "success", 
-                "content": content,
-                "file_path": actual_path,
-                "message": f"Viewing file: {actual_path}"
-            }
-        elif file_result["status"] == "suggestions":
-            return {
-                "status": "error",
-                "message": f"File '{file_path}' not found. Did you mean one of these? {', '.join(file_result['suggestions'])}"
-            }
-        return {"status": "error", "message": file_result["message"]}
+        if file_result["status"] == "not_found":
+            return {"status": "error", "message": f"File not found: {file_path}"}
+        
+        if file_result["status"] == "suggestions":
+            suggestions_str = ", ".join(file_result["suggestions"])
+            return {"status": "error", "message": f"File not found. Did you mean one of: {suggestions_str}?"}
+        
+        # Read the file contents
+        with open(file_result["file_path"], 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        
+        return {"status": "success", "content": content}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Error viewing file: {str(e)}"}
+
+def describe_image(image_path: str) -> Dict[str, Any]:
+    """Describe the contents of an image using the LM Studio vision model."""
+    try:
+        # Use find_file to locate the image
+        file_result = find_file(image_path)
+        
+        if file_result["status"] == "not_found":
+            # Ask the user for the exact path
+            console.print(f"[{INFO_STYLE}]Image file not found: {image_path}[/{INFO_STYLE}]")
+            console.print(f"[{INFO_STYLE}]Please provide the exact path to the image:[/{INFO_STYLE}]")
+            return {
+                "status": "path_needed",
+                "message": f"Image file not found: {image_path}. Please provide the exact path to the image."
+            }
+        
+        if file_result["status"] == "suggestions":
+            suggestions_str = ", ".join(file_result["suggestions"])
+            console.print(f"[{INFO_STYLE}]Image file not found. Did you mean one of: {suggestions_str}?[/{INFO_STYLE}]")
+            console.print(f"[{INFO_STYLE}]Please provide the exact path to the image:[/{INFO_STYLE}]")
+            return {
+                "status": "path_needed",
+                "suggestions": file_result["suggestions"],
+                "message": f"Image file not found. Did you mean one of: {suggestions_str}? Please provide the exact path to the image."
+            }
+        
+        actual_path = file_result["file_path"]
+        
+        # The find_file function already checks existence, but double-check to be safe
+        if not os.path.exists(actual_path):
+            console.print(f"[{INFO_STYLE}]Error: Image file '{actual_path}' not found.[/{INFO_STYLE}]")
+            console.print(f"[{INFO_STYLE}]Please provide the exact path to the image:[/{INFO_STYLE}]")
+            return {
+                "status": "path_needed",
+                "message": f"Error: Image file '{actual_path}' not found. Please provide the exact path to the image."
+            }
+            
+        # Get the file size and check if it's reasonable
+        file_size = os.path.getsize(actual_path) / (1024 * 1024)  # Size in MB
+        console.print(f"[{INFO_STYLE}]Image file size: {file_size:.2f} MB[/{INFO_STYLE}]")
+        
+        if file_size > 4:
+            return {"status": "error", "message": f"Error: Image file is too large ({file_size:.2f} MB). Please use an image smaller than 20MB."}
+        
+        # Determine the correct MIME type based on file extension
+        file_extension = os.path.splitext(actual_path)[1].lower()
+        mime_type_map = {
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png'
+        }
+        mime_type = mime_type_map.get(file_extension, 'image/jpeg')  # Default to jpeg if unknown
+        
+        # Read and encode the image
+        with open(actual_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+            
+        console.print(f"[{INFO_STYLE}]Successfully encoded image, length: {len(encoded_string)} characters[/{INFO_STYLE}]")
+
+        # Construct the message with the image data
+        message = {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Analyze this image and tell me what you see."},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{encoded_string}",
+                        "detail": "high"
+                    }
+                }
+            ]
+        }
+
+        # Create a clean message history for the vision request (without including previous images)
+        # This prevents context window overload when describing multiple images
+        text_only_history = []
+        for msg in conversation_history:
+            # Only include text messages in the history for the vision request
+            if isinstance(msg.get("content", ""), str):
+                text_only_history.append(msg)
+            elif isinstance(msg.get("content", []), list):
+                # For messages with content as a list (like previous vision requests)
+                # Only include the text part, not the image data
+                new_content = [item for item in msg["content"] if item.get("type") == "text"]
+                if new_content:
+                    text_only_copy = msg.copy()
+                    text_only_copy["content"] = new_content
+                    text_only_history.append(text_only_copy)
+        
+        # Use the filtered conversation history
+        all_messages = text_only_history + [message]
+        
+        console.print(f"[{INFO_STYLE}]Sending vision request to LM Studio...[/{INFO_STYLE}]")
+
+        # Create a synchronous client for this specific call
+        from openai import OpenAI
+        sync_client = OpenAI(
+            base_url=LM_STUDIO_BASE_URL,
+            api_key="dummy-key"
+        )
+        
+        # Call the OpenAI ChatCompletion API via LM Studio
+        response = sync_client.chat.completions.create(
+            model="local-model",  # LM Studio uses the currently loaded model
+            messages=all_messages,
+            max_tokens=600,
+            temperature=0.7,
+        )
+        
+        console.print(f"[{INFO_STYLE}]Received vision response from LM Studio[/{INFO_STYLE}]")
+        
+        description = response.choices[0].message.content
+        
+        # Add a simplified version of the message to the conversation history
+        # This avoids storing the full base64 image data in the history
+        simplified_user_msg = {
+            "role": "user", 
+            "content": f"Describe the image: {actual_path}"
+        }
+        conversation_history.append(simplified_user_msg)
+        
+        # Add the assistant's response to the conversation history
+        conversation_history.append({
+            "role": "assistant",
+            "content": description
+        })
+        
+        return {"status": "success", "description": description}
+
+    except Exception as e:
+        console.print(f"[{ERROR_STYLE}]Error in vision processing: {str(e)}[/{ERROR_STYLE}]")
+        return {"status": "error", "message": f"An error occurred: {str(e)}"}
 
 # Map tool names to their implementations
 TOOL_MAP = {
@@ -409,7 +557,8 @@ TOOL_MAP = {
     "replace_text": replace_text,
     "insert_line": insert_line,
     "execute_command": execute_command,
-    "view_file": view_file
+    "view_file": view_file,
+    "describe_image": describe_image
 }
 
 def execute_tool_call(tool_call) -> str:
@@ -429,16 +578,17 @@ def create_lm_agent() -> Agent:
     """Creates an LM Studio agent using the default model from LM Studio."""
     # Define instructions for the AI model
     system_prompt = """
-    You are a helpful, accurate, and concise AI assistant designed to assist users with file manipulation, command execution, and general queries.
+    You are a helpful, accurate, and concise AI assistant designed to assist users with file manipulation, image description, command execution, and general queries.
 
     ### Tool Usage
-    - You have access to tools for file manipulation and command execution.
+    - You have access to tools for file manipulation, image description, and command execution.
     - Available tools include:
       - `create_file`: Create new files with specified content. Default to the current working directory.   
       - `replace_text`: Replace text within existing files. 
       - `insert_line`: Insert a line at a specific position in a file. 
       - `view_file`: Display the contents of a file. 
       - `execute_command`: Execute system commands. 
+      - `describe_image`: Describe the image in detail.
     - Always use the appropriate tool for the requested task.
     - Provide clear and concise explanations of what you're doing and why when using tools.
 
@@ -559,6 +709,18 @@ async def run_lm_agent(prompt: str, agent: Agent, model_name: str) -> AsyncGener
                     try:
                         args = json.loads(tool_call["function"]["arguments"])
                         result = TOOL_MAP[tool_call["function"]["name"]](**args)
+                        
+                        # Special handling for image description - display the result to the user
+                        if tool_call["function"]["name"] == "describe_image":
+                            if result.get("status") == "success":
+                                yield f"\n{result['description']}\n"
+                            elif result.get("status") == "path_needed":
+                                # When image is not found, display message to user asking for the exact path
+                                if "suggestions" in result:
+                                    suggestions_str = ", ".join(result["suggestions"])
+                                    yield f"\nImage file not found. Did you mean one of: {suggestions_str}?\nPlease provide the exact path to the image.\n"
+                                else:
+                                    yield f"\n{result['message']}\n"
                         
                         tool_response = {
                             "role": "tool",
@@ -687,7 +849,8 @@ async def main():
                 f"[{WELCOME_STYLE}]{WELCOME_MESSAGE}[/{WELCOME_STYLE}]\n\n"
                 f"[{INFO_STYLE}]This agent has the following capabilities:[/{INFO_STYLE}]\n"
                 f"• File operations (create, view, modify)\n"
-                f"• Command execution",
+                f"• Command execution\n"
+                f"• [bold]Vision capabilities[/bold] (describe images)",
                 border_style="magenta"
             ))
             

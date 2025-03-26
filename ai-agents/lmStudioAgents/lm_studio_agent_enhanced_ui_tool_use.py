@@ -27,7 +27,7 @@ import os
 import sys
 import json
 import subprocess
-from typing import AsyncGenerator, Dict, List, Any, Callable
+from typing import AsyncGenerator, Dict, Any
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -35,7 +35,6 @@ import asyncio
 from openai import AsyncOpenAI, RateLimitError
 from agents import Agent
 import time
-import random
 from rich.live import Live
 
 # Initialize console for rich output
@@ -192,6 +191,7 @@ TOOLS = [
 
 def find_file(file_path: str) -> Dict[str, Any]:
     """Find a file by name, with fuzzy matching if exact match not found."""
+    # First check if the path exists as provided
     if os.path.exists(file_path):
         return {
             "status": "found",
@@ -199,8 +199,31 @@ def find_file(file_path: str) -> Dict[str, Any]:
             "message": f"File found: {file_path}"
         }
     
-    directory = os.path.dirname(file_path) or "."
+    # Get the base name and directory from the path
+    directory = os.path.dirname(file_path)
     base_name = os.path.basename(file_path)
+    
+    # If no directory was specified, try current directory first
+    if not directory:
+        try:
+            # Check current directory
+            cwd = os.getcwd()
+            cwd_path = os.path.join(cwd, base_name)
+            if os.path.exists(cwd_path):
+                return {
+                    "status": "found",
+                    "file_path": cwd_path,
+                    "message": f"File found in current directory: {cwd_path}"
+                }
+            
+            # If not found in current directory, use current directory for search
+            directory = cwd
+        except Exception as e:
+            console.print(f"[{ERROR_STYLE}]Error accessing current directory: {str(e)}[/{ERROR_STYLE}]")
+            directory = "."
+    else:
+        # Use the provided directory
+        directory = directory or "."
     
     try:
         files = os.listdir(directory)

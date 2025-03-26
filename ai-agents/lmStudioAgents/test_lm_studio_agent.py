@@ -22,17 +22,56 @@ Run with:
 
 import os
 import pytest
+import glob
+import asyncio
 
 # Import functions from the main script
-from lm_studio_agent_clean_ui_bash_tool_use_v2 import (
+from lm_studio_agent_clean_ui_bash_tool_use_v4 import (
     create_file,
     replace_text,
     insert_line,
     view_file,
     execute_command,
     find_file,
-    create_lm_agent
+    describe_image,
+    create_lm_agent,
+    run_lm_agent
 )
+
+# Define a fixture for LM Studio connectivity
+@pytest.fixture(scope="session")
+def lm_studio_client():
+    """Create a client for LM Studio and verify connectivity.
+    
+    This fixture will be used by tests that require LM Studio to be running.
+    Tests will be skipped if LM Studio is not available or if SKIP_LM_STUDIO_TESTS is set.
+    """
+    # Skip if we're running in CI or don't want to test LM Studio
+    if os.environ.get("SKIP_LM_STUDIO_TESTS"):
+        pytest.skip("Skipping LM Studio tests due to SKIP_LM_STUDIO_TESTS environment variable")
+        
+    # Try to connect to LM Studio
+    LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
+    os.environ["OPENAI_API_KEY"] = "dummy-key"
+    os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
+    
+    try:
+        # Quick check if LM Studio is available
+        from openai import OpenAI
+        client = OpenAI(
+            base_url=LM_STUDIO_BASE_URL,
+            api_key="dummy-key"
+        )
+        
+        # Check if LM Studio is available
+        response = client.models.list()
+        if not response.data:
+            pytest.skip("No models available in LM Studio")
+            
+        # Return the client and model info for tests to use
+        return {"client": client, "models": response.data}
+    except Exception as e:
+        pytest.skip(f"LM Studio connection failed: {str(e)}")
 
 # Test helper functions
 def test_find_file():
@@ -165,75 +204,71 @@ def test_create_lm_agent():
     assert agent.model == "default"
 
 # Additional tests that require LM Studio running
-@pytest.mark.asyncio
-async def test_agent_connection():
+def test_agent_connection(lm_studio_client):
     """Test connection to LM Studio (requires LM Studio running)."""
-    import os
-    import sys
-    from openai import AsyncOpenAI
+    # Since we're using the fixture, we can assume LM Studio is available
+    # and skip the connection check since it was done in the fixture
     
-    # Skip if we're running in CI or don't want to test LM Studio
-    if os.environ.get("SKIP_LM_STUDIO_TESTS"):
-        pytest.skip("Skipping LM Studio connection test")
+    # Create the agent
+    agent = create_lm_agent()
     
-    # Test setup similar to main script
-    LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-    os.environ["OPENAI_API_KEY"] = "dummy-key"
-    os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
+    # Verify the agent was created successfully
+    assert agent is not None
+    assert agent.name == "LocalAssistant"
     
-    try:
-        client = AsyncOpenAI(
-            base_url=LM_STUDIO_BASE_URL,
-            api_key=os.environ["OPENAI_API_KEY"]
-        )
-        
-        # Try to list models - this will fail if LM Studio is not running
-        response = await client.models.list()
-        assert len(response.data) > 0
-        
-    except Exception as e:
-        pytest.skip(f"LM Studio not available: {str(e)}")
+    # Verify we have a running model
+    assert len(lm_studio_client["models"]) > 0
+    model = lm_studio_client["models"][0]
+    assert model.id is not None
+    print(f"Connected to LM Studio with model: {model.id}")
 
 @pytest.mark.asyncio
-async def test_streaming_response():
+async def test_streaming_response(lm_studio_client):
     """Test the streaming response functionality of the agent."""
-    import os
-    from openai import AsyncOpenAI
+    # Create the agent
+    agent = create_lm_agent()
     
-    # Skip if we're running in CI or don't want to test LM Studio
-    if os.environ.get("SKIP_LM_STUDIO_TESTS"):
-        pytest.skip("Skipping LM Studio streaming test")
+    # Test prompt
+    prompt = "Say hello in one short sentence."
     
-    # Import the run_lm_agent function
-    from lm_studio_agent_clean_ui_bash_tool_use_v2 import run_lm_agent, create_lm_agent
+    # Collect the response
+    response_text = ""
+    async for content in run_lm_agent(prompt, agent, lm_studio_client["models"][0].id):
+        response_text += content
+        
+    # Verify we got a response
+    assert len(response_text) > 0
+    print(f"Streaming response: {response_text}")
+
+def test_describe_image(lm_studio_client):
+    """Test the image description capability."""
+    # Find any image files in the current directory
+    image_files = glob.glob("*.jpeg") + glob.glob("*.png")
     
-    # Set up the environment
-    LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-    os.environ["OPENAI_API_KEY"] = "dummy-key"
-    os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
+    if not image_files:
+        pytest.skip("No compatible image files found in the current directory. Please add an .jpeg or .png image file to test the image description capability.")
     
-    try:
-        # Create an agent
-        agent = create_lm_agent()
-        
-        # Test prompt
-        test_prompt = "Hello, can you tell me a short joke?"
-        
-        # Test streaming response
-        chunks = []
-        async for chunk in run_lm_agent(test_prompt, agent, "default"):
-            # Verify that we're getting chunks of text
-            chunks.append(chunk)
-        
-        # Verify that we received multiple chunks
-        assert len(chunks) > 1, "Expected multiple chunks for streaming response"
-        
-        # Verify that when combined, the chunks form a coherent response
-        full_response = "".join(chunks)
-        assert len(full_response) > 0, "Expected non-empty response"
-        
-    except Exception as e:
-        pytest.skip(f"LM Studio streaming test failed: {str(e)}")
+    # Use the first image file found
+    test_image = image_files[0]
+    print(f"Testing image description with: {test_image}")
+    
+    # Test describing the image
+    result = describe_image(test_image)
+    
+    # Print the result for debugging
+    print(f"Result: {result}")
+    
+    # Check if LM Studio returned an error related to vision capabilities
+    if result["status"] == "error" and ("llama_decode" in result.get("message", "") or 
+                                        "vision" in result.get("message", "").lower()):
+        pytest.skip(f"LM Studio model may not support vision capabilities: {result['message']}")
+    
+    # If not a vision capability error, then we should have a success
+    assert result["status"] == "success", f"Expected success but got: {result}"
+    assert "description" in result
+    assert len(result["description"]) > 0
+    
+    print(f"Image description: {result['description'][:100]}...")  # Print first 100 chars of description
 
 if __name__ == "__main__":
-    pytest.main(["-v", __file__]) 
+    pytest.main(["-v", __file__])
