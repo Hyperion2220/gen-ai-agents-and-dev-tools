@@ -5,7 +5,6 @@
 #   "openai-agents>=0.0.6",
 #   "rich>=13.9.4",
 #   "openai>=1.68.2",
-#   "python-dotenv>=1.0.0",
 # ]
 # ///
 
@@ -14,20 +13,14 @@ import base64
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
 # LM Studio configuration
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-
-# Set environment variables for OpenAI API
-os.environ["OPENAI_API_KEY"] = "dummy-key"  # LM Studio doesn't need a real API key
-os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
+LM_STUDIO_API_KEY = "dummy-key"  # LM Studio doesn't need a real API key
 
 # Create OpenAI client configured for LM Studio
 client = OpenAI(
     base_url=LM_STUDIO_BASE_URL,
-    api_key="dummy-key"  # LM Studio doesn't need a real API key
+    api_key=LM_STUDIO_API_KEY
 )
 
 def check_model_capabilities():

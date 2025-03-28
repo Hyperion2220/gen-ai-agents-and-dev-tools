@@ -38,15 +38,12 @@ console = Console()
 
 # LM Studio configuration
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-
-# Set environment variables for OpenAI API
-os.environ["OPENAI_API_KEY"] = "dummy-key"
-os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
+LM_STUDIO_API_KEY = "dummy-key"  # LM Studio doesn't need a real API key
 
 # Create AsyncOpenAI client configured for LM Studio
 openai_client = AsyncOpenAI(
     base_url=LM_STUDIO_BASE_URL,
-    api_key=os.environ["OPENAI_API_KEY"]
+    api_key=LM_STUDIO_API_KEY
 )
 
 # Define color styles that work well in Windows terminals

@@ -17,13 +17,16 @@ This file contains tests for the LM Studio agent functionality.
 It uses pytest for testing various aspects of the agent's behavior.
 
 Run with:
-    uv run pytest test_lm_studio_agent.py -v
+    uv run test_lm_studio_agent.py -v
 """
 
 import os
 import pytest
 import glob
 import asyncio
+
+LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
+LM_STUDIO_API_KEY = "dummy-key"  # LM Studio doesn't need a real API key
 
 # Import functions from the main script
 from lm_studio_agent_clean_ui_bash_tool_use_vision_v4 import (
@@ -50,17 +53,13 @@ def lm_studio_client():
     if os.environ.get("SKIP_LM_STUDIO_TESTS"):
         pytest.skip("Skipping LM Studio tests due to SKIP_LM_STUDIO_TESTS environment variable")
         
-    # Try to connect to LM Studio
-    LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-    os.environ["OPENAI_API_KEY"] = "dummy-key"
-    os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
-    
+    # Try to connect to LM Studio    
     try:
         # Quick check if LM Studio is available
         from openai import OpenAI
         client = OpenAI(
             base_url=LM_STUDIO_BASE_URL,
-            api_key="dummy-key"
+            api_key=LM_STUDIO_API_KEY
         )
         
         # Check if LM Studio is available

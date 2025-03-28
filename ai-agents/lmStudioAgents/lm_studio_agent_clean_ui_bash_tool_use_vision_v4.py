@@ -5,7 +5,6 @@
 #   "openai-agents>=0.0.6",
 #   "rich>=13.9.4",
 #   "openai>=1.68.2",
-#   "python-dotenv>=1.0.0",
 # ]
 # ///
 
@@ -48,15 +47,12 @@ conversation_history = []
 
 # LM Studio configuration
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-
-# Set environment variables for OpenAI API
-os.environ["OPENAI_API_KEY"] = "dummy-key"
-os.environ["OPENAI_API_BASE"] = LM_STUDIO_BASE_URL
+LM_STUDIO_API_KEY = "dummy-key"
 
 # Create AsyncOpenAI client configured for LM Studio
 openai_client = AsyncOpenAI(
     base_url=LM_STUDIO_BASE_URL,
-    api_key=os.environ["OPENAI_API_KEY"]
+    api_key=LM_STUDIO_API_KEY
 )
 
 # Define color styles that work well in Windows terminals
@@ -427,8 +423,6 @@ def describe_image(image_path: str) -> Dict[str, Any]:
         
         if file_result["status"] == "not_found":
             # Ask the user for the exact path
-            console.print(f"[{INFO_STYLE}]Image file not found: {image_path}[/{INFO_STYLE}]")
-            console.print(f"[{INFO_STYLE}]Please provide the exact path to the image:[/{INFO_STYLE}]")
             return {
                 "status": "path_needed",
                 "message": f"Image file not found: {image_path}. Please provide the exact path to the image."
@@ -436,8 +430,6 @@ def describe_image(image_path: str) -> Dict[str, Any]:
         
         if file_result["status"] == "suggestions":
             suggestions_str = ", ".join(file_result["suggestions"])
-            console.print(f"[{INFO_STYLE}]Image file not found. Did you mean one of: {suggestions_str}?[/{INFO_STYLE}]")
-            console.print(f"[{INFO_STYLE}]Please provide the exact path to the image:[/{INFO_STYLE}]")
             return {
                 "status": "path_needed",
                 "suggestions": file_result["suggestions"],
@@ -448,8 +440,6 @@ def describe_image(image_path: str) -> Dict[str, Any]:
         
         # The find_file function already checks existence, but double-check to be safe
         if not os.path.exists(actual_path):
-            console.print(f"[{INFO_STYLE}]Error: Image file '{actual_path}' not found.[/{INFO_STYLE}]")
-            console.print(f"[{INFO_STYLE}]Please provide the exact path to the image:[/{INFO_STYLE}]")
             return {
                 "status": "path_needed",
                 "message": f"Error: Image file '{actual_path}' not found. Please provide the exact path to the image."
@@ -484,8 +474,7 @@ def describe_image(image_path: str) -> Dict[str, Any]:
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:{mime_type};base64,{encoded_string}",
-                        "detail": "high"
+                        "url": f"data:{mime_type};base64,{encoded_string}"
                     }
                 }
             ]
@@ -516,7 +505,7 @@ def describe_image(image_path: str) -> Dict[str, Any]:
         from openai import OpenAI
         sync_client = OpenAI(
             base_url=LM_STUDIO_BASE_URL,
-            api_key="dummy-key"
+            api_key=LM_STUDIO_API_KEY
         )
         
         # Call the OpenAI ChatCompletion API via LM Studio
